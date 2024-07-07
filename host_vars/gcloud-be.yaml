@@ -1,0 +1,6 @@
+appuser: '{{ ansible_user_id }}'
+appgroup: '{{ ansible_user_gid }}'
+service:
+    workingdir: '{{ ansible_user_dir }}/minigoodreads-be'
+    execstart: 'java --enable-preview -Dspring.profiles.active=prod -jar target/minigoodreads.jar'
+    dbhost: '10.0.0.5'

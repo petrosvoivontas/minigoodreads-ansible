@@ -1,0 +1,52 @@
+---
+- name: 'Install MySQL RDBMS'
+  hosts: gcloud-db
+
+  tasks:
+      - name: install mysql-server
+        become: true
+        become_user: root
+        apt:
+            name: ['mysql-server', 'mysql-client']
+            state: present
+            update_cache: true
+
+      - name: ensure mysql started
+        service:
+            name: mysql
+            state: started
+            enabled: true
+
+      - name: ensure mysql listening on all ports
+        become: true
+        become_user: root
+        lineinfile: dest=/etc/mysql/mysql.conf.d/mysqld.cnf regexp=^bind-address line="bind-address = 0.0.0.0"
+        notify: restart mysql
+
+      - name: Ensure MySQL Python libraries are installed.
+        become: true
+        become_user: root
+        apt:
+            name: 'python3-mysqldb'
+            state: present
+            update_cache: true
+
+      - name: 'Clone minigoodreads-db repo'
+        git:
+            repo: 'https://github.com/petrosvoivontas/minigoodreads-db.git'
+            version: 'master'
+            dest: '{{ ansible_user_dir }}/minigoodreads-db'
+
+      - name: 'Init MySQL'
+        mysql_db:
+            name: minigoodreads
+            state: import
+            target: '{{ ansible_user_dir }}/minigoodreads-db/init/01-users.sql'
+            login_user: root
+            login_password: '{{ mysql_root_password }}'
+
+  handlers:
+      - name: restart mysql
+        service:
+            name: mysql
+            state: restarted

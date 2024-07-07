@@ -1,0 +1,9 @@
+appuser: '{{ ansible_user_id }}'
+frontend:
+    dir: '{{ ansible_user_dir }}/minigoodreads-fe'
+    env:
+        REACT_APP_GOOGLE_BOOKS_API_KEY: 'AIzaSyBhSJOr-HpY7WjaAEm7gSqn4HsABYYmIBk'
+        REACT_APP_BACKEND_HOST: '10.0.0.4'
+        REACT_APP_BACKEND_PORT: 8081
+be_host: 10.0.0.4
+be_port: 8081

@@ -1,0 +1,13 @@
+[Unit]
+Description=Minigoodreads BE
+After=network.target
+
+[Service]
+User={{appuser}}
+Group={{appgroup}}
+WorkingDirectory={{service.workingdir}}
+ExecStart={{service.execstart}}
+Environment="MYSQL_HOST={{service.dbhost}}"
+
+[Install]
+WantedBy=multi-user.target

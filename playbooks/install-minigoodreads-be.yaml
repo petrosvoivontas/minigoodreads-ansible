@@ -1,0 +1,38 @@
+---
+- name: 'Install Minigoodreads Spring Boot application'
+  hosts: gcloud-be
+
+  pre_tasks:
+      - name: 'Install Java 18'
+        become: true
+        become_user: root
+        apt:
+            name: 'openjdk-18-jdk'
+            state: present
+            update_cache: yes
+
+  tasks:
+      - name: 'Clone minigoodreads-be git repo'
+        git:
+            repo: 'https://github.com/petrosvoivontas/minigoodreads-be.git'
+            version: 'master'
+            dest: '{{ ansible_user_dir }}/minigoodreads-be'
+      - name: 'Build minigoodreads-be'
+        command: './mvnw clean package -Dmaven.test.skip'
+        args:
+            chdir: '{{ ansible_user_dir }}/minigoodreads-be'
+      - name: 'Copy spring service file'
+        template:
+            src: ../services/spring.service.j2
+            dest: '/etc/systemd/system/spring.service'
+        become: true
+        become_user: root
+        notify: restart spring
+        changed_when: true
+
+  handlers:
+      - name: restart spring
+        service:
+            name: spring
+            state: restarted
+        become: true

@@ -1,0 +1,130 @@
+---
+- name: 'Install nginx and minigoodreads-fe'
+  hosts: gcloud-lb
+
+  tasks:
+      - name: 'Install nginx'
+        become: true
+        become_user: root
+        apt:
+            name: ['nginx']
+            state: present
+            update_cache: true
+      - name: 'Install nvm'
+        ansible.builtin.shell: >
+            curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+        args:
+            creates: '{{ ansible_env.HOME }}/.nvm/nvm.sh'
+            executable: /bin/bash
+      - name: Source NVM script in .bashrc
+        lineinfile:
+            dest: '{{ ansible_env.HOME }}/.bashrc'
+            line: 'export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")" && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm'
+            state: present
+        environment:
+            HOME: '{{ ansible_env.HOME }}'
+        become_user: petros
+      - name: Load NVM and install nodejs
+        shell: . {{ ansible_env.HOME }}/.nvm/nvm.sh && nvm install 18
+        args:
+            executable: /bin/bash
+        become_user: petros
+      - name: 'Clone minigoodreads-fe repo'
+        git:
+            repo: 'https://github.com/petrosvoivontas/minigoodreads-fe.git'
+            version: 'master'
+            dest: '{{ frontend.dir }}'
+      - name: 'Create .env'
+        command: 'cp .env.example .env'
+        args:
+            chdir: '{{ frontend.dir }}'
+      - name: 'Populate .env values'
+        lineinfile:
+            dest: '{{ frontend.dir }}/.env'
+            state: present
+            regexp: '^{{item.key}}='
+            line: '{{item.key}}={{item.value}}'
+        with_items:
+            - '{{frontend.env | dict2items}}'
+      - name: 'npm install and npm build'
+        shell: >
+            . {{ ansible_env.HOME }}/.nvm/nvm.sh
+            && nvm use 18
+            && npm install --no-package-lock
+            && npm run build
+        args:
+            chdir: '{{ frontend.dir }}'
+            executable: /bin/bash
+        become_user: petros
+
+      - name: 'Copy http nginx conf'
+        become: true
+        become_user: root
+        template:
+            src: ../files/minigoodreads.nginx.j2
+            dest: '/etc/nginx/sites-available/minigoodreads'
+
+      - name: 'Copy https nginx conf'
+        become: true
+        become_user: root
+        template:
+            src: ../files/minigoodreads.https.nginx.j2
+            dest: '/etc/nginx/sites-available/minigoodreadsssl'
+
+      # - name: 'Copy certificates'
+      #   copy:
+      #       src: '{{item}}'
+      #       dest: /etc/ssl/private/
+      #   with_items:
+      #       - ../files/certs/server.crt
+      #       - ../files/certs/server.key
+
+      - name: 'Fix nginx permissions'
+        ansible.builtin.file:
+            path: '{{ansible_user_dir}}'
+            mode: ugo+x
+
+      - name: 'Enable minigoodreads http site in nginx'
+        become: true
+        become_user: root
+        file:
+            src: '/etc/nginx/sites-available/minigoodreads'
+            dest: '/etc/nginx/sites-enabled/minigoodreads'
+            state: link
+        changed_when: true
+        notify:
+            - restart nginx
+            - reload nginx
+
+      # - name: 'Enable minigoodreads https site in nginx'
+      #   become: true
+      #   become_user: root
+      #   file:
+      #       src: '/etc/nginx/sites-available/minigoodreadsssl'
+      #       dest: '/etc/nginx/sites-enabled/minigoodreadsssl'
+      #       state: link
+      #   notify:
+      #       - restart nginx
+      #       - reload nginx
+
+      - name: 'De-activate default nginx site'
+        become: true
+        become_user: root
+        changed_when: true
+        file:
+            path: /etc/nginx/sites-enabled/default
+            state: absent
+        notify: restart nginx
+
+  handlers:
+      - name: restart nginx
+        service:
+            name: nginx
+            state: restarted
+        become: true
+
+      - name: reload nginx
+        service:
+            name: nginx
+            state: reloaded
+        become: true

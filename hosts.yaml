@@ -1,0 +1,13 @@
+---
+devops-example:
+    hosts:
+        devops-example:
+            ansible_host: gcloud_devops_example
+gcloud:
+    hosts:
+        gcloud-lb:
+            ansible_host: gcloud_devops_lb
+        gcloud-be:
+            ansible_host: gcloud_devops_be
+        gcloud-db:
+            ansible_host: gcloud_devops_db
