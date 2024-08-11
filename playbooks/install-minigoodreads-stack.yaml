@@ -1,0 +1,76 @@
+---
+- name: 'Install minigoodreads stack'
+  hosts: gcloud-docker
+  tasks:
+      - name: 'Install nvm'
+        ansible.builtin.shell: >
+            curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+        args:
+            creates: '{{ ansible_env.HOME }}/.nvm/nvm.sh'
+            executable: /bin/bash
+      - name: Source NVM script in .bashrc
+        lineinfile:
+            dest: '{{ ansible_env.HOME }}/.bashrc'
+            line: 'export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")" && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm'
+            state: present
+        environment:
+            HOME: '{{ ansible_env.HOME }}'
+        become_user: petros
+      - name: Load NVM and install nodejs
+        shell: . {{ ansible_env.HOME }}/.nvm/nvm.sh && nvm install --lts
+        args:
+            executable: /bin/bash
+        become_user: petros
+      - name: 'Clone minigoodreads-fe repo'
+        git:
+            repo: 'https://github.com/petrosvoivontas/minigoodreads-fe.git'
+            version: 'master'
+            dest: '{{ frontend.dir }}'
+      - name: 'Create .env'
+        command: 'cp .env.example .env'
+        args:
+            chdir: '{{ frontend.dir }}'
+      - name: 'Populate .env values'
+        lineinfile:
+            dest: '{{ frontend.dir }}/.env'
+            state: present
+            regexp: '^{{item.key}}='
+            line: '{{item.key}}={{item.value}}'
+        with_items:
+            - '{{frontend.env | dict2items}}'
+      - name: 'npm install and npm build'
+        shell: >
+            . {{ ansible_env.HOME }}/.nvm/nvm.sh
+            && nvm use --lts
+            && npm install --no-package-lock
+            && npm run build
+        args:
+            chdir: '{{ frontend.dir }}'
+            executable: /bin/bash
+        become_user: petros
+      - name: 'Login to GHCR'
+        become: true
+        become_user: root
+        ansible.builtin.docker_login:
+            registry_url: 'ghcr.io'
+            username: '{{ registry.username }}'
+            password: '{{ registry.password }}'
+            state: present
+      - name: 'Copy the docker-compose.yaml file'
+        copy:
+            src: ../files/docker-compose.yaml
+            dest: '{{ ansible_user_dir }}/docker-compose.yaml'
+      - name: 'Shutdown docker-compose stack'
+        become: true
+        become_user: root
+        ansible.builtin.docker_compose:
+            project_src: '{{ ansible_user_dir }}'
+            build: false
+            state: 'absent'
+      - name: 'Start docker-compose stack'
+        become: true
+        become_user: root
+        ansible.builtin.docker_compose:
+            project_src: '{{ ansible_user_dir }}'
+            build: false
+            state: 'present'

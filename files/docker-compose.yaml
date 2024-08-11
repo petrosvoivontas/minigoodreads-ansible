@@ -1,0 +1,44 @@
+version: '3.9'
+
+services:
+    mysql:
+        container_name: 'minigoodreads_mysql'
+        hostname: 'minigoodreads_mysql'
+        image: 'ghcr.io/petrosvoivontas/minigoodreads-db:1.0.0'
+        command: '--default-authentication-plugin=mysql_native_password'
+        restart: always
+        volumes:
+            - 'mysql_data:/var/lib/mysql'
+        ports:
+            - '3306:3306'
+        environment:
+            MYSQL_DATABASE: 'minigoodreads'
+            MYSQL_ROOT_PASSWORD: 'root'
+    minigoodreads:
+        container_name: 'minigoodreads_be'
+        hostname: 'minigoodreads_be'
+        image: 'ghcr.io/petrosvoivontas/minigoodreads-be:1.0.0'
+        environment:
+            MYSQL_HOST: 'minigoodreads_mysql'
+            DB_NAME: 'minigoodreads'
+            DB_USERNAME: 'minigoodreads'
+            DB_PASS: 'minigoodreads'
+    minigoodreads_lb:
+        container_name: 'minigoodreads_lb'
+        hostname: 'minigoodreads_lb'
+        image: 'ghcr.io/petrosvoivontas/minigoodreads-nginx:1.0.3'
+        ports:
+            - '80:80'
+        volumes:
+            - './minigoodreads-fe/build:/app'
+        environment:
+            be_host: 'minigoodreads_be'
+            be_port: '8081'
+            frontend_root_dir: '/app'
+
+networks:
+    default:
+        name: 'minigoodreads_network'
+
+volumes:
+    mysql_data:
