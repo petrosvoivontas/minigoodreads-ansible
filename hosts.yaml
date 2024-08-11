@@ -11,3 +11,5 @@ gcloud:
             ansible_host: gcloud_devops_be
         gcloud-db:
             ansible_host: gcloud_devops_db
+        gcloud-docker:
+            ansible_host: gcloud_devops_docker
