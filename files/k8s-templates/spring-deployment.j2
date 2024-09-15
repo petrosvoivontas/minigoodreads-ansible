@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: minigoodreads-be
+spec:
+    selector:
+        matchLabels:
+            app: minigoodreads-be
+    template:
+        metadata:
+            labels:
+                app: minigoodreads-be
+        spec:
+            containers:
+                - name: 'minigoodreads-be'
+                  image: 'ghcr.io/petrosvoivontas/minigoodreads-be:{{minigoodreads_be_version}}'
+                  env:
+                      - name: MYSQL_HOST
+                        value: 'minigoodreads-db-svc'
+                      - name: DB_NAME
+                        value: 'minigoodreads'
+                      - name: DB_USERNAME
+                        value: 'minigoodreads'
+                      - name: DB_PASS
+                        value: 'minigoodreads'
+                  resources:
+                      limits:
+                          memory: '500Mi'
+                          cpu: '500m'
+                  ports:
+                      - containerPort: 9090
+            imagePullSecrets:
+                - name: ghcr
