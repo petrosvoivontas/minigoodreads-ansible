@@ -1,0 +1,15 @@
+- name: 'Deploy minigoodreads-db to k8s'
+  hosts: gcloud-k8s
+  tasks:
+      - name: 'Delete minigoodreads-db from k8s'
+        kubernetes.core.k8s:
+            namespace: default
+            name: minigoodreads-db
+            api_version: apps/v1
+            kind: Deployment
+            state: absent
+      - name: 'Apply minigoodreads-db to k8s'
+        kubernetes.core.k8s:
+            state: present
+            namespace: default
+            template: '../files/k8s-templates/db-deployment.j2'
