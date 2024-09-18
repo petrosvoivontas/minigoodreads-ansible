@@ -1,0 +1,15 @@
+- name: 'Deploy minigoodreads-be to k8s'
+  hosts: gcloud-k8s
+  tasks:
+      - name: 'Delete minigoodreads-nginx from k8s'
+        kubernetes.core.k8s:
+            namespace: default
+            name: minigoodreads-nginx
+            api_version: apps/v1
+            kind: Deployment
+            state: absent
+      - name: 'Apply minigoodreads-nginx to k8s'
+        kubernetes.core.k8s:
+            state: present
+            namespace: default
+            template: '../files/k8s-templates/fe-deployment.j2'
