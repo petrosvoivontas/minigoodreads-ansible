@@ -1,4 +1,4 @@
-- name: 'Deploy minigoodreads-be to k8s'
+- name: 'Deploy minigoodreads-fe to k8s'
   hosts: gcloud-k8s
   tasks:
       - name: 'Delete minigoodreads-nginx from k8s'
